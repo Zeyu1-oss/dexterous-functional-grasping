@@ -48,7 +48,7 @@ aux_beta=${5:-0.1}
 addition_info=norobot_torqueobj
 zarr_backend=${ZARR_BACKEND:-auto}
 
-EXPECTED_PC=${EXPECTED_PC:-2048}   # cam1 alone (--disable_cam2 --no_robot)
+EXPECTED_PC=${EXPECTED_PC:-2048}   # cam1 alone (--single_camera --no_robot_pc)
 
 IFS=',' read -ra _zarr_paths <<< "${data_path}"
 for _p in "${_zarr_paths[@]}"; do
@@ -56,7 +56,7 @@ for _p in "${_zarr_paths[@]}"; do
 import zarr; z = zarr.open('${_p}', mode='r')
 print(z['data']['point_cloud'].shape[1], z['data']['state'].shape[1])")
     if [ "${pc_points}" != "${EXPECTED_PC}" ]; then
-        echo -e "\033[31m[ERROR] ${_p} 点云=${pc_points} != ${EXPECTED_PC}(--no_robot 采的纯相机点云)\033[0m"; exit 1
+        echo -e "\033[31m[ERROR] ${_p} 点云=${pc_points} != ${EXPECTED_PC}(--no_robot_pc 采的纯相机点云)\033[0m"; exit 1
     fi
     # 26 维是硬要求:力矩目标取自 state[13:26],13 维数据下这个目标不存在
     if [ "${state_dim}" != "26" ]; then

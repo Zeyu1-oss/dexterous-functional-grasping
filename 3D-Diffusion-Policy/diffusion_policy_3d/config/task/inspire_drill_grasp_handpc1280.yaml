@@ -3,7 +3,7 @@ name: inspire_drill_grasp_handpc1280
 task_name: inspire_drill_grasp_handpc1280
 
 # stage1-only grasp, cam1-only camera segment (cam2 disabled), hand-only robot FK segment:
-#   collect_dp3_data.py --stage1_only --disable_cam2 --pc_num_points 2048 \
+#   collect_dp3_data.py --stage1_only --single_camera --pc_num_points 2048 \
 #       --robot_pc_points 1280 --robot_pc_hand_only --robot_pc_per_link 50 --force_state ...
 #
 # 点云 (3328, 3) = [xyz] -- cam1 2048 | robot 1280。与 inspire_drill_grasp_cam1_2048_force

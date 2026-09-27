@@ -43,7 +43,7 @@ for _p in "${_zarr_paths[@]}"; do
 import zarr; z = zarr.open('${_p}', mode='r')
 print(z['data']['point_cloud'].shape[1], z['data']['state'].shape[1])")
     if [ "${pc_points}" != "${EXPECTED_PC}" ]; then
-        echo -e "\033[31m[ERROR] ${_p} 点云=${pc_points} != ${EXPECTED_PC}(--no_robot 采的纯相机点云)\033[0m"; exit 1
+        echo -e "\033[31m[ERROR] ${_p} 点云=${pc_points} != ${EXPECTED_PC}(--no_robot_pc 采的纯相机点云)\033[0m"; exit 1
     fi
     # 26 维是硬要求:力矩要进观测,13 维数据下 state_split 会因 force_dim<=0 静默回退成单 MLP
     if [ "${state_dim}" != "26" ]; then

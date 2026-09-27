@@ -10,7 +10,7 @@
 #
 # ---- 1. 四通道点云 -------------------------------------------------------------------
 # 数据要用 --save_mask 采:
-#   python scripts/collect_dp3_data.py --stage1_only --disable_cam2 --no_robot \
+#   python scripts/collect_dp3_data.py --stage1_only --single_camera --no_robot_pc \
 #       --force_state --save_contact --save_mask --num_episodes 2614 --headless \
 #       --output data/norobot_mask.zarr
 # zarr 里 point_cloud (T,2048,3) 和 pc_mask (T,2048) 是两个数组,dataset.mask_channel=true
@@ -75,7 +75,7 @@ torque_pct=${TORQUE_PCT:-1.0}          # p1/p99;设 0.5 走更保守的 p0.5/p99
 gate_label=${GATE_LABEL:-hard}         # hard | soft
 zarr_backend=${ZARR_BACKEND:-auto}
 
-EXPECTED_PC=${EXPECTED_PC:-2048}       # 2048 = cam1 alone (--disable_cam2 --no_robot)
+EXPECTED_PC=${EXPECTED_PC:-2048}       # 2048 = cam1 alone (--single_camera --no_robot_pc)
 
 case "${gate_label}" in
     hard) soft_flag=false ;;
@@ -94,7 +94,7 @@ print(d['point_cloud'].shape[1], d['state'].shape[1],
       1 if 'pc_mask' in d else 0,
       d['pc_mask'].shape[1] if 'pc_mask' in d else -1)")
     if [ "${pc_points}" != "${EXPECTED_PC}" ]; then
-        echo -e "\033[31m[ERROR] ${_p} 点云=${pc_points} != ${EXPECTED_PC}。本脚本要的是 --disable_cam2 --no_robot 采的纯 cam1 点云\033[0m"; exit 1
+        echo -e "\033[31m[ERROR] ${_p} 点云=${pc_points} != ${EXPECTED_PC}。本脚本要的是 --single_camera --no_robot_pc 采的纯 cam1 点云\033[0m"; exit 1
     fi
     if [ "${state_dim}" != "26" ]; then
         echo -e "\033[31m[ERROR] ${_p} state=${state_dim} != 26,采集时必须加 --force_state\033[0m"; exit 1

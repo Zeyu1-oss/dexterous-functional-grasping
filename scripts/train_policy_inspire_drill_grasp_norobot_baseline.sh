@@ -42,7 +42,7 @@ for _p in "${_zarr_paths[@]}"; do
 import zarr; z = zarr.open('${_p}', mode='r')
 print(z['data']['point_cloud'].shape[1], z['data']['state'].shape[1])")
     if [ "${pc_points}" != "${EXPECTED_PC}" ]; then
-        echo -e "\033[31m[ERROR] ${_p} 点云=${pc_points} != ${EXPECTED_PC}(--no_robot 采的纯相机点云)\033[0m"; exit 1
+        echo -e "\033[31m[ERROR] ${_p} 点云=${pc_points} != ${EXPECTED_PC}(--no_robot_pc 采的纯相机点云)\033[0m"; exit 1
     fi
     # zarr 存 26 维(--force_state 采的),dataset.agent_pos_dim=13 在加载时切掉力矩那半
     if [ "${state_dim}" != "26" ]; then

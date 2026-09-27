@@ -68,7 +68,7 @@ print(z['data']['point_cloud'].shape[1], z['data']['state'].shape[1],
         echo -e "\033[31m[ERROR] 读不出 ${_p} 的元数据。检查路径是否存在、是否是 zarr 目录\033[0m"; exit 1
     fi
     if [ "${pc_points}" != "${EXPECTED_PC}" ]; then
-        echo -e "\033[31m[ERROR] ${_p} 点云=${pc_points} != ${EXPECTED_PC}。本脚本要的是 --no_robot 采的纯相机点云\033[0m"; exit 1
+        echo -e "\033[31m[ERROR] ${_p} 点云=${pc_points} != ${EXPECTED_PC}。本脚本要的是 --no_robot_pc 采的纯相机点云\033[0m"; exit 1
     fi
     if [ "${state_dim}" != "26" ]; then
         echo -e "\033[31m[ERROR] ${_p} state=${state_dim} != 26,采集时必须加 --force_state\033[0m"; exit 1

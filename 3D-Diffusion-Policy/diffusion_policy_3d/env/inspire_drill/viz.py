@@ -44,13 +44,13 @@ def detect_segments(N):
     if N == 1280:   # 单段现行方案: cam1|cam2|robot|ground
         return [("cam1", 0, 512), ("cam2", 512, 1024),
                 ("robot", 1024, 1184), ("ground", 1184, 1280)]
-    # --stage1_only --disable_cam2:相机段整块给 cam1,后面直接接 FK 机器人段,没有
+    # --stage1_only --single_camera:相机段整块给 cam1,后面直接接 FK 机器人段,没有
     # plate/drill/ground。两种 robot 预算只差机器人段长度,前 2048 都是 cam1。
     if N == 3328:   # --pc_num_points 2048 + --robot_pc_points 1280(手部 R_* 专用预算)
         return [("cam1", 0, 2048), ("robot", 2048, 3328)]
     if N == 2560:   # --pc_num_points 2048 + --robot_pc_points 512
         # 曾被当成旧的 camera2048|ground512 —— 那会把 512 个 FK 机器人点画成"地面"。
-        # 现行采集(collect_dp3_data.py --disable_cam2,--ground_points 默认 0)不产生 ground 段。
+        # 现行采集(collect_dp3_data.py --single_camera,--ground_points 默认 0)不产生 ground 段。
         return [("cam1", 0, 2048), ("robot", 2048, 2560)]
     if N == 3810:   # 旧 robot 模式
         return [("camera", 0, 2048), ("robot+drill", 2048, 3298), ("ground", 3298, 3810)]

@@ -3,7 +3,7 @@ name: inspire_drill_grasp_norobot_pos13
 task_name: inspire_drill_grasp_norobot_pos13
 
 # Plain DP3 baseline on the camera-only grasp data: point cloud + joint POSITIONS, nothing else.
-#   collect_dp3_data.py --stage1_only --disable_cam2 --no_robot --force_state ...
+#   collect_dp3_data.py --stage1_only --single_camera --no_robot_pc --force_state ...
 # 点云 (2048, 3) = cam1 alone。agent_pos (13) = 关节位置。
 #
 # The zarr still stores 26 dims ([pos13 | torque13], it was collected with --force_state), and

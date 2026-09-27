@@ -4,7 +4,7 @@ task_name: inspire_drill_grasp_norobot_maskch_contact
 
 # stage1-only grasp, cam1 alone, no robot FK segment, handle mask as a 4th point-cloud channel,
 # joint-torque state, and the per-link hand contact forces kept as a training-time label:
-#   collect_dp3_data.py --stage1_only --disable_cam2 --no_robot \
+#   collect_dp3_data.py --stage1_only --single_camera --no_robot_pc \
 #                       --force_state --save_contact --save_mask ...
 #
 # 与 inspire_drill_grasp_norobot_contact 的唯一区别就是点云多了第 4 通道(is_handle);

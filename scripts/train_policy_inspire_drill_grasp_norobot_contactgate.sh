@@ -13,7 +13,7 @@ aux_beta=${AUX_BETA:-0.1}
 addition_info=norobot_contactgate
 zarr_backend=${ZARR_BACKEND:-auto}
 
-EXPECTED_PC=${EXPECTED_PC:-2048}   # 2048 = cam1 alone (--disable_cam2 --no_robot)
+EXPECTED_PC=${EXPECTED_PC:-2048}   # 2048 = cam1 alone (--single_camera --no_robot_pc)
 
 IFS=',' read -ra _zarr_paths <<< "${data_path}"
 for _p in "${_zarr_paths[@]}"; do
@@ -22,7 +22,7 @@ import zarr; z = zarr.open('${_p}', mode='r')
 print(z['data']['point_cloud'].shape[1], z['data']['state'].shape[1],
       1 if 'contact' in z['data'] else 0)")
     if [ "${pc_points}" != "${EXPECTED_PC}" ]; then
-        echo -e "\033[31m[ERROR] ${_p} 点云=${pc_points} != ${EXPECTED_PC}。本脚本要的是 --no_robot 采的纯相机点云\033[0m"; exit 1
+        echo -e "\033[31m[ERROR] ${_p} 点云=${pc_points} != ${EXPECTED_PC}。本脚本要的是 --no_robot_pc 采的纯相机点云\033[0m"; exit 1
     fi
     if [ "${state_dim}" != "26" ]; then
         echo -e "\033[31m[ERROR] ${_p} state=${state_dim} != 26,采集时必须加 --force_state\033[0m"; exit 1

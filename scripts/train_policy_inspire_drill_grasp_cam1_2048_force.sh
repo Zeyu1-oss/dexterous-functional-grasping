@@ -6,7 +6,7 @@
 #   agent_pos 仍是满 26 维 [关节位置13 | 关节力矩13]（perception/student_obs.py 已从"接触力"
 #   改成"力矩" applied_torque，同样触发 simple_dp3.yaml 的 state_split）。
 #
-# 数据由 collect_dp3_data.py --stage1_only --disable_cam2 --pc_num_points 2048 \
+# 数据由 collect_dp3_data.py --stage1_only --single_camera --pc_num_points 2048 \
 #   --robot_pc_points 512 --force_state ... 采集。
 #
 # 点云 [2560,3] = cam1 2048 | robot 512（无 mask/rgb）。EXPECTED_PC=2560。

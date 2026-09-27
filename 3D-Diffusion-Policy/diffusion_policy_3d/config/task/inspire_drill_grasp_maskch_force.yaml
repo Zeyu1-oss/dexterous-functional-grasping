@@ -3,7 +3,7 @@ name: inspire_drill_grasp_maskch_force
 task_name: inspire_drill_grasp_maskch_force
 
 # 纯抓取 + 把手 mask 作为点云第 4 通道 + 关节力矩 state。
-#   collect_dp3_data.py --stage1_only --disable_cam2 --pc_num_points 2048 --robot_pc_points 512 \
+#   collect_dp3_data.py --stage1_only --single_camera --pc_num_points 2048 --robot_pc_points 512 \
 #                       --force_state --save_mask --mask_threshold 0.005 ...
 #
 # 点云 (2560, 4) = [xyz | is_handle],cam1 2048 | robot 512(cam2 禁用,无 plate/drill/ground 段)。
