@@ -15,14 +15,26 @@ def _safe_compile(model=None, *args, **kwargs):
     return lambda fn: fn
 torch.compile = _safe_compile
 
-DP3_ROOT = "/home/zeyu/3D-Diffusion-Policy/3D-Diffusion-Policy"
+# The student's source tree (the `dp3` branch, checked out beside this repo -- see README).
+# Deploy imports diffusion_policy_3d from it, so it is needed to RUN a student and not only to
+# train one; point DP3_ROOT elsewhere if your checkout is not the sibling directory.
+DP3_ROOT = os.environ.get(
+    "DP3_ROOT",
+    os.path.join(os.path.dirname(project_root), "3D-Diffusion-Policy", "3D-Diffusion-Policy"),
+)
 sys.path.insert(0, DP3_ROOT)
 from perception.dp3_pointcloud import (camera_pc, camera_crop_bounds, build_plate_cam_pc,
                                         init_fps_kernel, wrist_cam_pose_w, raise_z_floor)
 from perception.camera_setup import (load_perception_hp as _load_perception_hp,
                                      ensure_rgb_aov, get_cameras, detect_wrist_cam,
                                      apply_render_settings, setup_ground)
-init_fps_kernel("/home/zeyu/3D-Diffusion-Policy/third_party/pytorch3d_simplified")
+# pytorch3d's farthest-point-sampling kernel, if it is there; falls back to the torch
+# implementation in perception/dp3_pointcloud.py when the import fails, so this is a speedup
+# rather than a requirement.
+init_fps_kernel(os.environ.get(
+    "PYTORCH3D_PATH",
+    os.path.join(os.path.dirname(DP3_ROOT), "third_party", "pytorch3d_simplified"),
+))
 
 
 PC_NUM_POINTS = 2048
@@ -31,7 +43,9 @@ PC_NUM_POINTS = 2048
 def parse_args():
     _PERC = _load_perception_hp() 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dp3_ckpt', type=str, default='/home/zeyu/3D-Diffusion-Policy/3D-Diffusion-Policy/data/outputs/inspire_drill-simple_dp3-simple_dp3_seed0/checkpoints/latest.ckpt')
+    parser.add_argument('--dp3_ckpt', type=str,
+                        default=os.path.join(DP3_ROOT, 'data/outputs/inspire_drill-simple_dp3-'
+                                                       'simple_dp3_seed0/checkpoints/latest.ckpt'))
     parser.add_argument("--num_envs", type=int, default=9)
     parser.add_argument('--num_episodes', type=int, default=1000)
     parser.add_argument('--num_inference_steps', type=int, default=None)
@@ -84,7 +98,7 @@ def parse_args():
     parser.add_argument('--plate_pc_points', type=int, default=512)
     parser.add_argument('--success_hold_stop', type=int, default=1)
     parser.add_argument('--episode_length_s', type=float, default=10.0)
-    parser.add_argument('--init_pose_file', type=str, default=None,)
+    parser.add_argument('--init_pose_file', type=str, default='data/eval_sobol_100_pos010.npz',)
     parser.add_argument('--exam_n', type=int, default=100)   # exam poses per variant (only used with --init_pose_file)
     parser.add_argument('--save_success_poses', type=str, default=None,
                         help="npz path. Every episode the policy SOLVES has its initial drill "

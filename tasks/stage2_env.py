@@ -8,7 +8,12 @@ import os
 import numpy as np
 import torch
 
-ISAAC_NUCLEUS_DIR = "/home/zeyu/inspire_drill/assets"
+# Local stand-in for isaaclab's ISAAC_NUCLEUS_DIR: the gitignored assets/ of this repo, which is
+# where the debug frame_prim.usd below is looked up. Overridable for a checkout elsewhere.
+ISAAC_NUCLEUS_DIR = os.environ.get(
+    "INSPIRE_ASSETS_DIR",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets"),
+)
 
 
 # ============================================================

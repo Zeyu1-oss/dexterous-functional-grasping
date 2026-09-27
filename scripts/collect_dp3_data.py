@@ -260,7 +260,11 @@ def main():
         print("[IMP] psutil ...", flush=True)
         import psutil
         print("[IMP] pytorch3d FPS kernel ...", flush=True)
-        if init_fps_kernel("/home/zeyu/3D-Diffusion-Policy/third_party/pytorch3d_simplified"):
+        if init_fps_kernel(os.environ.get(
+                "PYTORCH3D_PATH",
+                os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+                    os.path.abspath(__file__)))), "3D-Diffusion-Policy", "third_party",
+                    "pytorch3d_simplified"))):
             print("[IMP] pytorch3d FPS available (fused CUDA kernel)", flush=True)
         else:
             print("[IMP] pytorch3d FPS NOT available -> python loop fallback", flush=True)
