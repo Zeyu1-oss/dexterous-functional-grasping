@@ -54,10 +54,10 @@ pip install einops diffusers termcolor hydra-core gdown
 gdown --fuzzy 'https://drive.google.com/file/d/1PdrOZZjNwIF0OrMTwvL6x9sda6tw_FAN/view?usp=drive_link' -O assets.zip
 unzip assets.zip -d assets/
 python tools/build_robot_pointcloud.py
-
-# Released grasp student
-gdown --fuzzy 'https://drive.google.com/file/d/19svkGp74ZOuaX3Tyom0twH36VG3Tywde/view?usp=drive_link' -O dp3_student.ckpt
 ```
+
+Released checkpoints are downloaded where they are used, in the sections below; each training step
+can be skipped in favour of the checkpoint it would have produced.
 
 Deployment runs in the Isaac Lab environment and imports model code from the `dp3` checkout.
 For a different checkout location, set `DP3_ROOT` to its **inner** `3D-Diffusion-Policy/` directory
@@ -73,8 +73,11 @@ Run commands from the `main` checkout in the Isaac Lab environment, except stude
 ### Run the released student
 
 ```bash
+# The distilled grasp student, trained by the pipeline below
+gdown --fuzzy 'https://drive.google.com/file/d/19svkGp74ZOuaX3Tyom0twH36VG3Tywde/view?usp=drive_link' -O dp3_student.ckpt
+
 python scripts/deploy_dp3_sim.py --stage1_only --headless --num_envs 70 \
-    --disable_cam2 --no_robot --dp3_ckpt dp3_student.ckpt \
+    --single_camera --no_robot_pc --dp3_ckpt dp3_student.ckpt \
     --init_pose_file data/eval_sobol_100_pos010.npz --exam_n 100
 ```
 
@@ -87,11 +90,15 @@ success criterion than the current evaluation; see [Results](#results).
 # 1. Train the PPO teacher
 python scripts/train_with_rl_games.py --headless --num_envs 4096
 
+# ...or skip step 1 and use the released grasp teacher
+gdown --fuzzy 'https://drive.google.com/file/d/16oCxohqHhrrA1qDKqdP-CNuhHt1ARmvy/view?usp=sharing' -O stage1_teacher.pth
+python scripts/play_drill.py --checkpoint stage1_teacher.pth        # optional: watch it grasp
+
 # 2. Collect successful demonstrations
 python scripts/collect_dp3_data.py --stage1_only --headless \
     --num_envs 256 --episodes_per_variant 1000 \
-    --disable_cam2 --no_robot --force_state --save_contact \
-    --stage1_checkpoint <teacher_ckpt> --output data/norobot.zarr
+    --single_camera --no_robot_pc --force_state --save_contact \
+    --stage1_checkpoint stage1_teacher.pth --output data/norobot.zarr
 ```
 
 Activate the DP3 environment, then train the student with an absolute dataset path:
@@ -107,7 +114,7 @@ Reactivate the Isaac Lab environment and evaluate the checkpoint:
 ```bash
 cd ../functional-grasp-with-torque-gate
 python scripts/deploy_dp3_sim.py --stage1_only --headless --num_envs 70 \
-    --disable_cam2 --no_robot \
+    --single_camera --no_robot_pc \
     --dp3_ckpt ../3D-Diffusion-Policy/3D-Diffusion-Policy/data/outputs/<run>/checkpoints/epoch_0180.ckpt \
     --init_pose_file data/eval_sobol_100_pos010.npz --exam_n 100
 ```
@@ -116,21 +123,27 @@ Ablation scripts are in the `dp3` checkout's `scripts/` directory
 (`..._norobot_baseline.sh`, `..._torqueobs.sh`, `..._torqueobj.sh`, `..._eq1.sh`).
 Use the same demonstration dataset and evaluation protocol for each condition.
 
+The point cloud is assembled from two sources, and the two flags above select what the released
+student was trained on: `--single_camera` builds it from cam1 alone, and `--no_robot_pc` leaves out
+the forward-kinematics robot points. Its state vector is joint positions and torques.
+
 > **Observation consistency:** collection and deployment must use matching camera and robot-cloud
-> settings. Shape checks do not detect all composition mismatches. The released student uses
-> `--disable_cam2 --no_robot`, with joint positions and torques.
+> settings. Shape checks do not detect all composition mismatches.
 
 <details>
-<summary>Optional robot point cloud</summary>
-
-The camera cloud can be supplemented with canonical robot-link points transformed by forward
-kinematics. This option is disabled by `--no_robot` in the commands above.
+<summary>Camera and robot-cloud options</summary>
 
 | Flag | Function |
 |---|---|
-| `--robot_pc_points` | Set the robot-cloud point budget |
-| `--robot_pc_hand_only` | Retain hand links only |
+| `--single_camera` | Build the camera segment from cam1 alone, rather than fusing cam1 and cam2 at half the budget each |
+| `--no_robot_pc` | Omit the robot segment; the point cloud is the camera segment alone |
+| `--robot_pc_points` | Set the robot-segment point budget |
+| `--robot_pc_hand_only` | Restrict the robot segment to hand links |
 | `--robot_pc_per_link` | Set the per-link point allocation |
+
+The robot segment supplements the camera cloud with canonical robot-link points placed by forward
+kinematics, which the depth view resolves poorly once the fingers close. cam2 is the wrist camera
+under `--chained` and `--stage2_only`, and a second fixed view under `--stage1_only`.
 
 Pass these settings explicitly during collection and deployment: their defaults differ, and
 changing the link filter may preserve the array shape while changing its content.
@@ -145,7 +158,7 @@ Train a separate alignment teacher from successful grasp states:
 
 ```bash
 python scripts/collect_success_data.py --headless --num_envs 4096 \
-    --checkpoint <teacher_ckpt> --output collected_data/success_data.pkl
+    --checkpoint stage1_teacher.pth --output collected_data/success_data.pkl
 python scripts/train2.py --headless --num_envs 4096 --dataset collected_data/success_data.pkl
 python scripts/play_stage2.py --checkpoint <alignment_ckpt>
 ```

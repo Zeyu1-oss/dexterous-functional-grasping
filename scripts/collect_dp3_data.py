@@ -72,12 +72,15 @@ def parse_args():
                              "so contact[k] is the observation at the decision time of action[k], "
                              "which is the force produced by action[k-1]. Same convention as "
                              "state/point_cloud/privileged; nothing here is shifted.")
-    parser.add_argument('--disable_cam2', action='store_true',
-                        help="cam1 alone supplies the whole camera segment (all PC_NUM_POINTS); "
-                             "cam2 (wrist cam) is not sampled into the point cloud")
+    parser.add_argument('--single_camera', action='store_true',
+                        help="build the camera segment from cam1 alone, all PC_NUM_POINTS of it. "
+                             "The default fuses cam1 and cam2 at PC_NUM_POINTS//2 each. NOTE cam2 "
+                             "is the wrist camera only under --chained/--stage2_only; under "
+                             "--stage1_only it is the second fixed view (see _make_cam_cfg in "
+                             "grasp_drill_env.py). Deploy must be given the same flag.")
     parser.add_argument('--robot_pc_per_link', type=int, default=0)
     parser.add_argument('--robot_pc_hand_only', action='store_true')
-    parser.add_argument('--no_robot', action='store_true',
+    parser.add_argument('--no_robot_pc', action='store_true',
                         help="drop the robot FK segment entirely: point_cloud is the camera "
                              "segment alone (PC_NUM_POINTS, plus plate/ground only if those are "
                              "enabled). --robot_pc_points/--robot_pc_hand_only/--robot_pc_per_link "
@@ -198,7 +201,7 @@ def main():
               "single teacher (--stage2_checkpoint) drives alignment, camera segment = cam2+cam3", flush=True)
     elif args.stage1_only and not args.chained:
         args.chained = True
-        _cam_desc = "cam1 alone" if args.disable_cam2 else "cam1+cam2 fused"
+        _cam_desc = "cam1 alone" if args.single_camera else "cam1+cam2 fused"
         print(f"[INFO] --stage1_only: enable ChainedEnv + wrist camera, but cam3 off (no plate segment). "
               f"camera segment={PC_NUM_POINTS} pts ({_cam_desc}) + robot (up to {args.robot_pc_points} pts); "
               f"teacher1 drives throughout, terminates on stable grasp, no stage2", flush=True)
@@ -431,8 +434,8 @@ def main():
 
         robot_fk = None
         robot_pc_M = 0
-        if args.no_robot:
-            print("[INFO] --no_robot: the robot FK segment is not built; point_cloud is the camera "
+        if args.no_robot_pc:
+            print("[INFO] --no_robot_pc: the robot FK segment is not built; point_cloud is the camera "
                   "segment only (plus plate/ground if those are enabled)", flush=True)
         else:
             from perception.robot_pointcloud import RobotPointCloudFK, HAND_LINK_PREFIXES
@@ -468,9 +471,9 @@ def main():
               "ckpt trained on this data must deploy with --lag_comp 0; cannot mix with old-gen (action-shifted) zarr",
               flush=True)
 
-        if args.disable_cam2:
-            print(f"[INFO] --disable_cam2: cam1 alone supplies the camera segment "
-                  f"({PC_NUM_POINTS} points); cam2 (wrist cam) not sampled", flush=True)
+        if args.single_camera:
+            print(f"[INFO] --single_camera: cam1 alone supplies the camera segment "
+                  f"({PC_NUM_POINTS} points); cam2 not sampled", flush=True)
         if args.stage2_only:
             print(f"[INFO] --stage2_only: camera segment = cam2+cam3 ({PC_NUM_POINTS} points, "
                   f"{PC_NUM_POINTS//2} each); cam1 not sampled, no separate plate segment", flush=True)
@@ -688,7 +691,7 @@ def main():
                         pc_fused[:, :_half] = pc2
                         pc_fused[:, _half:_half * 2] = pc3
                         zmask1 = torch.zeros_like(zmask2)
-                    elif args.disable_cam2:
+                    elif args.single_camera:
                         _crop1 = camera_crop_bounds(env_unwrapped.drill.data.root_pos_w,
                                                     env_unwrapped.scene.env_origins, _PERC, workspace)
                         pc_fused, zmask1, _ = camera_pc(cam1, _crop1, _cam_budget,
@@ -721,7 +724,7 @@ def main():
                         total_zero_pc += _z3
                         total_zero_pc_c3 += _z3
 
-                    if not args.disable_cam2 and not args.stage2_only and _cam2_on_body and (total_steps <= 2 or total_steps % 200 == 0):
+                    if not args.single_camera and not args.stage2_only and _cam2_on_body and (total_steps <= 2 or total_steps % 200 == 0):
                         _fk_p = _cam2_pose[0][0]
                         _st_p = cam2.data.pos_w[0]
                         _half = PC_NUM_POINTS // 2
@@ -869,13 +872,18 @@ def main():
               f"dropped_abnormal={n_dropped_abnormal}, "
               f"zero_pc={total_zero_pc}(cam1={total_zero_pc_c1} cam2={total_zero_pc_c2} "
               f"cam3={total_zero_pc_c3}), peak_gpu={gpu_mem_gb:.1f}GB, time={h}h{m}m{s}s", flush=True)
+        # cam2 is the wrist camera only in the chained/stage2 scene; --stage1_only builds it as a
+        # second FIXED view, and then an empty cam2 is as suspicious as an empty cam1, not routine.
+        _cam2_is_wrist = bool(args.chained or args.stage2_only)
+        _cam2_desc = "wrist camera" if _cam2_is_wrist else "second fixed camera"
+        _cam2_verdict = ("mostly normal (hand far from drill / beyond far_clip)" if _cam2_is_wrist
+                         else "SUSPICIOUS -- a fixed view should see the table")
         if total_zero_pc_c1 > 0:
             print(f"[NOTE] cam1 (fixed camera) had {total_zero_pc_c1} empty frames -- the fixed camera sees the table and should not be empty,"
                   f"check whether cam1's pose/crop workspace crops the table out of view (suspicious)."
-                  f"cam2 (wrist camera) empty {total_zero_pc_c2} times is mostly normal (hand far from drill / beyond far_clip)", flush=True)
+                  f"cam2 ({_cam2_desc}) empty {total_zero_pc_c2} times is {_cam2_verdict}", flush=True)
         else:
-            print(f"[NOTE] zero_pc all from cam2 (wrist camera={total_zero_pc_c2}), cam1=0 --"
-                  f"these are normal empty frames from far_clip / the wrist camera not seeing near objects, not a stats bug;"
+            print(f"[NOTE] zero_pc all from cam2 ({_cam2_desc}={total_zero_pc_c2}), cam1=0 -- {_cam2_verdict};"
                   f"these frames are already filtered by _bad and do not enter the dataset", flush=True)
         print(f"Output: {args.output}", flush=True)
 

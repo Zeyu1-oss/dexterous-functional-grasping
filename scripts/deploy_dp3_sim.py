@@ -57,11 +57,13 @@ def parse_args():
     parser.add_argument('--drill_variants', type=str, default=None)
     parser.add_argument('--img_height', type=int, default=_PERC.img_height)
     parser.add_argument("--img_width", type=int, default=_PERC.img_width)
-    parser.add_argument('--disable_cam2', action='store_true',
-                        help="cam1 alone supplies the whole camera segment (all PC_NUM_POINTS); "
-                             "cam2 (wrist cam) is not sampled into the point cloud. Must match "
-                             "how the checkpoint's training data was collected "
-                             "(collect_dp3_data.py --disable_cam2).")
+    parser.add_argument('--single_camera', action='store_true',
+                        help="build the camera segment from cam1 alone, all PC_NUM_POINTS of it. "
+                             "The default fuses cam1 and cam2 at PC_NUM_POINTS//2 each. NOTE cam2 "
+                             "is the wrist camera only under --chained/--stage2_only; under "
+                             "--stage1_only it is the second fixed view (see _make_cam_cfg in "
+                             "grasp_drill_env.py). Must match how the checkpoint's training data "
+                             "was collected (collect_dp3_data.py --single_camera).")
     parser.add_argument('--robot_pc_points', type=int, default=160)
     parser.add_argument('--ground_points', type=int, default=0)
     parser.add_argument('--workspace', nargs=6, type=float, default=None)
@@ -78,10 +80,10 @@ def parse_args():
                              "The point COUNT is unchanged, so this is invisible in the zarr shape "
                              "-- collect and deploy must be given the same flag or the policy sees "
                              "a robot segment it was never trained on.")
-    parser.add_argument('--no_robot', action='store_true',
+    parser.add_argument('--no_robot_pc', action='store_true',
                         help="drop the robot FK segment: point_cloud is the camera segment alone. "
                              "Must match how the data was collected (collect_dp3_data.py "
-                             "--no_robot).")
+                             "--no_robot_pc).")
     parser.add_argument('--robot_pc_npz', type=str, default='assets/inspire_tac/robot_canonical_points.npz')
     parser.add_argument('--chained', action='store_true')
     parser.add_argument('--stage1_only', action='store_true')
@@ -547,7 +549,7 @@ def run_collect_success_data(env_unwrapped, simulation_app, args, cam1, PERC):
     install_direct_drive(env_unwrapped, rate_limit=args.rate_limit)
 
     robot_fk = None
-    if not args.no_robot:
+    if not args.no_robot_pc:
         _npz = args.robot_pc_npz if os.path.isabs(args.robot_pc_npz) else os.path.join(project_root, args.robot_pc_npz)
         robot_fk = RobotPointCloudFK(_npz, list(env_unwrapped.franka.body_names), args.device,
                                      max_points=ROBOT_PTS,
@@ -559,8 +561,8 @@ def run_collect_success_data(env_unwrapped, simulation_app, args, cam1, PERC):
 
     print(f"[COLLECT] GRASP composition (hardcoded): cam1 alone {CAM_PTS} + robot {_robot_M} "
           f"= {total_pc} pts, workspace={workspace} | ckpt={args.dp3_ckpt}", flush=True)
-    if args.disable_cam2 or args.robot_pc_points != 160:
-        print("[COLLECT] NOTE: --disable_cam2/--robot_pc_points are ignored in "
+    if args.single_camera or args.robot_pc_points != 160:
+        print("[COLLECT] NOTE: --single_camera/--robot_pc_points are ignored in "
               "--collect_success_data mode (camera config is hardcoded, see above)", flush=True)
 
     ck = _load_dp3_ckpt_for_two_stage(args.dp3_ckpt, total_pc, args.device, args.num_inference_steps, "GRASP")
@@ -826,12 +828,12 @@ def run_dp3_two_stage(env_unwrapped, simulation_app, args, cam1, cam2, cam3, cam
 
     # ---- per-state config, hardcoded -- see docstring ----
     dp3_states = (GRASP,) if align_is_rl else (GRASP, ALIGN)
-    # The FK robot segment is per-state, and --no_robot drops it from GRASP only. The grasp
-    # checkpoints trained on a --no_robot zarr expect 2048 camera points and nothing else, so
+    # The FK robot segment is per-state, and --no_robot_pc drops it from GRASP only. The grasp
+    # checkpoints trained on a --no_robot_pc zarr expect 2048 camera points and nothing else, so
     # building the segment for them would both overflow max_points and hand the policy a
     # point cloud one segment wider than the one it was fitted on. ALIGN keeps its segment
     # either way: the align checkpoint was collected with it.
-    _fk_pts = {GRASP: 0 if args.no_robot else 512, ALIGN: 160}
+    _fk_pts = {GRASP: 0 if args.no_robot_pc else 512, ALIGN: 160}
     robot_fk = {}
     for s in dp3_states:
         if _fk_pts[s] <= 0:
@@ -862,8 +864,8 @@ def run_dp3_two_stage(env_unwrapped, simulation_app, args, cam1, cam2, cam3, cam
         _rp = robot_fk[s].num_points if robot_fk[s] is not None else 0
         print(f"[{tag}] {state_name[s]}: {cam_pts[s]} cam pts + {_rp} robot pts = "
               f"{total_pc[s]} pts, workspace={workspace[s]} | ckpt={ckpt_path[s]}", flush=True)
-    if args.disable_cam2 or args.robot_pc_points != 160:
-        print(f"[{tag}] NOTE: --disable_cam2/--robot_pc_points are ignored here "
+    if args.single_camera or args.robot_pc_points != 160:
+        print(f"[{tag}] NOTE: --single_camera/--robot_pc_points are ignored here "
               "(each DP3 state's camera config is hardcoded, see above)", flush=True)
 
     ck = {s: _load_dp3_ckpt_for_two_stage(ckpt_path[s], total_pc[s], args.device,
@@ -1331,7 +1333,7 @@ def main():
     # passing --stage1_only alone auto-forces chained (otherwise it uses GraspDrillEnv and cam2 becomes a fixed camera).
     elif args.stage1_only and not args.chained:
         args.chained = True
-        _cam_desc = "cam1 alone" if args.disable_cam2 else "cam1+cam2 fused"
+        _cam_desc = "cam1 alone" if args.single_camera else "cam1+cam2 fused"
         print(f"[INFO] --stage1_only: auto-enable ChainedEnv + wrist camera, cam3 off (no plate segment). "
               f"camera segment={PC_NUM_POINTS} pts ({_cam_desc}) + robot (up to {args.robot_pc_points} pts) "
               f"-- exact total printed once the checkpoint's expected point_cloud is "
@@ -1586,8 +1588,8 @@ def main():
 
         robot_fk = None
         robot_pc_M = 0
-        if args.no_robot:
-            print("[INFO] --no_robot: no robot FK segment (must match the collection)", flush=True)
+        if args.no_robot_pc:
+            print("[INFO] --no_robot_pc: no robot FK segment (must match the collection)", flush=True)
         else:
             from perception.robot_pointcloud import RobotPointCloudFK, HAND_LINK_PREFIXES
             _npz = args.robot_pc_npz
@@ -1631,7 +1633,7 @@ def main():
                                           _ws[0], _ws[1], _ws[2], _ws[3]))
             return torch.cat(parts, dim=1)
 
-        _sim_pc_per_cam = PC_NUM_POINTS if args.disable_cam2 else PC_NUM_POINTS // 2
+        _sim_pc_per_cam = PC_NUM_POINTS if args.single_camera else PC_NUM_POINTS // 2
         _workspace = tuple(args.workspace)
         cam1.update(dt)
         cam2.update(dt)
@@ -1658,7 +1660,7 @@ def main():
             pc1_init, _, _ = camera_pc(cam1, _ws_init, _sim_pc_per_cam, env_unwrapped.scene.env_origins)
             _last_pc1 = pc1_init
             pc_fused_init[:, :_sim_pc_per_cam] = pc1_init   # cam1 30cm follow
-            if args.disable_cam2:
+            if args.single_camera:
                 _last_pc2 = None
             else:
                 _ws_init_cam2 = raise_z_floor(_ws_init, getattr(_PERC, "wrist_cam_z_floor", None))
@@ -1708,7 +1710,7 @@ def main():
                 f"{args.ground_points}), or --plate_pc_points/--chained (plate is "
                 f"{'ON' if _use_plate else 'OFF'}).\n"
                 f"  e.g. a 2560-point ckpt = cam1 2048 + robot 512 -> deploy with "
-                f"--disable_cam2 --robot_pc_points 512")
+                f"--single_camera --robot_pc_points 512")
         print(f"  point_cloud: ckpt={_ckpt_pc} deploy={total_pc} ✓", flush=True)
 
         # point cloud channels: ckpt shape[-1]==4 -> 4 channels (xyz+mask), compute GT handle mask live in sim
@@ -1862,7 +1864,7 @@ def main():
                              f"(To-1)+lag_comp+n_act <= horizon "
                              f"({n_obs - 1}+{args.lag_comp}+{n_act} > {horizon})")
         num_inf_steps = args.num_inference_steps or dp3_policy.num_inference_steps
-        sim_pc_per_cam = PC_NUM_POINTS if args.disable_cam2 else PC_NUM_POINTS // 2
+        sim_pc_per_cam = PC_NUM_POINTS if args.single_camera else PC_NUM_POINTS // 2
 
         if args.torque_feedforward:
             if getattr(dp3_policy_ema, "aux_dim", 0) <= 0:
@@ -2048,20 +2050,20 @@ def main():
                     _ws = camera_crop_bounds(env_unwrapped.drill.data.root_pos_w,
                                              env_origins, _PERC, workspace)
                     pc1_t, zmask1, _ = camera_pc(cam1, _ws, sim_pc_per_cam, env_origins)
-                    if not args.disable_cam2:
+                    if not args.single_camera:
                         _ws_cam2 = raise_z_floor(_ws, getattr(_PERC, "wrist_cam_z_floor", None))
                         pc2_t, zmask2, _ = camera_pc(cam2, _ws_cam2, sim_pc_per_cam, env_origins,
                                                      pose_w=_cam2_pose())
                     if not args.chained:
                         pc1_t = torch.where(zmask1.view(-1, 1, 1), _last_pc1, pc1_t)
                         _last_pc1 = pc1_t
-                        if not args.disable_cam2:
+                        if not args.single_camera:
                             pc2_t = torch.where(zmask2.view(-1, 1, 1), _last_pc2, pc2_t)
                             _last_pc2 = pc2_t
                     pcf = torch.zeros(args.num_envs, PC_NUM_POINTS, 3,
                                      device=args.device, dtype=torch.float32)
                     pcf[:, :sim_pc_per_cam] = pc1_t
-                    if not args.disable_cam2:
+                    if not args.single_camera:
                         pcf[:, sim_pc_per_cam:] = pc2_t
                     pc_now = append_robot_ground(pcf)
 
@@ -2308,7 +2310,7 @@ def main():
                             pc_fused_2048[:, sim_pc_per_cam:] = pc3_t
                         else:
                             pc1_t, zmask1, _ = camera_pc(cam1, _ws, sim_pc_per_cam, env_origins)
-                            if not args.disable_cam2:
+                            if not args.single_camera:
                                 _ws_cam2 = raise_z_floor(_ws, getattr(_PERC, "wrist_cam_z_floor", None))
                                 pc2_t, zmask2, _ = camera_pc(cam2, _ws_cam2, sim_pc_per_cam, env_origins,
                                                              pose_w=_cam2_pose())
@@ -2319,22 +2321,22 @@ def main():
                             if not args.chained:
                                 pc1_t = torch.where(zmask1.view(-1, 1, 1), _last_pc1, pc1_t)
                                 _last_pc1 = pc1_t
-                                if not args.disable_cam2:
+                                if not args.single_camera:
                                     pc2_t = torch.where(zmask2.view(-1, 1, 1), _last_pc2, pc2_t)
                                     _last_pc2 = pc2_t
 
                             pc_fused_2048[:, :sim_pc_per_cam] = pc1_t   # cam1 30cm follow
-                            if not args.disable_cam2:
+                            if not args.single_camera:
                                 pc_fused_2048[:, sim_pc_per_cam:] = pc2_t   # cam2 30cm follow (same frame, different view)
 
                         pc_for_policy = append_robot_ground(pc_fused_2048)
                         # empty-camera mask, same composition rule collect uses to drop a frame
-                        # (stage2_only: cam2|cam3; disable_cam2: cam1 alone; else cam1|cam2)
+                        # (stage2_only: cam2|cam3; single_camera: cam1 alone; else cam1|cam2)
                         if _dump is not None:
                             _l = locals()
                             if args.stage2_only:
                                 _bad_now = _l["zmask2"] | _l["zmask3"]
-                            elif args.disable_cam2:
+                            elif args.single_camera:
                                 _bad_now = _l["zmask1"]
                             else:
                                 _bad_now = _l["zmask1"] | _l["zmask2"]
