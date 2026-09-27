@@ -136,7 +136,7 @@ comes from that exam, except the rows marked ‡.
 # B1. Stage-1 teacher: grasp (PPO)
 python scripts/train_with_rl_games.py --headless --num_envs 4096
 
-# optional: watch it
+# optional: play checkpoint
 python scripts/play_drill.py --checkpoint <ckpt>
 
 # B2. Collect DP3 demonstrations (only successful episodes are written)
@@ -158,6 +158,42 @@ python scripts/deploy_dp3_sim.py --stage1_only --headless --num_envs 70 --disabl
 The ablation conditions are sibling scripts in the `dp3` checkout's `scripts/`
 (`..._norobot_baseline.sh`, `..._torqueobs.sh`, `..._torqueobj.sh`, `..._eq1.sh`), each trained on
 the same zarr from B2 and graded with the same B4 command.
+
+#### What B2 writes as the point cloud
+
+<p align="center"><img src="docs/img/pointcloud_example.png" width="62%" alt="A point-cloud observation from the collection pipeline: the hand and arm links and the drill, as the student receives them in env-local coordinates"></p>
+
+The observation is one array, but it is built from two segments, and the flags in `collect_dp3_data.py`
+decide how much of each:
+
+| | Source | Flags |
+|---|---|---|
+| **Camera** | depth → point cloud, cropped to the workspace | `--disable_cam2` (cam1 only), `--img_height/--img_width` |
+| **Robot** | the robot's own links, placed by forward kinematics | `--robot_pc_points`, `--robot_pc_hand_only`, `--robot_pc_per_link`, `--no_robot` |
+
+The robot segment exists because the depth camera sees the hand worst exactly when the hand matters
+most: closing around the handle, the fingers occlude each other and occlude the grasp. So instead of
+hoping the camera resolves them, the hand is drawn in from geometry that is already known —
+`assets/inspire_tac/robot_canonical_points.npz` holds points sampled per link in that link's own
+frame (built once by `tools/build_robot_pointcloud.py`: 837 points on the hand's `R_*` links, 256 on
+the arm, 187 on the wrist flange), and each frame every link's points are rigid-transformed by that
+link's pose. Nothing is estimated; the segment is as exact as the joint encoders.
+
+**`--robot_pc_hand_only`** is the hand-supplement switch: it applies `HAND_LINK_PREFIXES = ("R_",)`
+as a link filter, so the segment carries the fingers and the palm and drops the arm — rarely what
+occludes the grasp, never what touches the tool — along with the wrist flange, which is what
+`HAND_AND_FLANGE_PREFIXES` exists to add back. It does not change the point count
+— `--robot_pc_points` (default 1280) still sets that — so the same budget is spent entirely on the
+hand. `--robot_pc_per_link N` divides the budget per link instead, and `--no_robot` drops the
+segment altogether, leaving the camera cloud alone.
+
+Two things to know before changing any of this. The released student is trained with **`--no_robot`**
+— the `norobot.zarr` in B2 — so the hand supplement is an alternative configuration here, not what
+the 79.7 % checkpoint consumes. And the filter is invisible in the data: it changes which links the
+points sit on but not the array's shape, so collecting with `--robot_pc_hand_only` and deploying
+without it produces a correctly shaped, silently wrong observation. Deploy takes the same four flags
+for that reason — but *not* the same defaults (collect: 1280 points, no per-link split; deploy: 160
+and 50), so pass them explicitly on both sides rather than relying on either.
 
 ### C. Optional: the alignment stage
 
