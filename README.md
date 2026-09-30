@@ -159,8 +159,13 @@ Train a separate alignment teacher from successful grasp states:
 python scripts/collect_success_data.py --headless --num_envs 4096 \
     --checkpoint stage1_teacher.pth --output collected_data/success_data.pkl
 python scripts/train2.py --headless --num_envs 4096 --dataset collected_data/success_data.pkl
-python scripts/play_stage2.py --checkpoint <alignment_ckpt>
+python scripts/play_stage2.py --checkpoint <alignment_ckpt> \
+    --success_dataset collected_data/success_data.pkl
 ```
+
+Replay resets into an already-grasped state sampled from that pkl, so it needs the same file
+`train2.py` was given; passing it is not optional, because the script's own default names a
+different file.
 
 For combined deployment, use `--stage2_rl` for teacher alignment or `--stage2_dp3_ckpt` for a
 separately distilled alignment student. This stage is independent of the grasp ablation.
