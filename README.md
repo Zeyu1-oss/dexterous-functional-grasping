@@ -6,7 +6,7 @@ distilled from a privileged PPO teacher, studying how applied joint torque shoul
 is only informative during hand–tool contact.
 
 This branch is one step of a larger pipeline. The rest is the
-[**`main` branch**](https://github.com/Zeyu1-oss/functional-grasp-with-torque-gate/tree/main) of this same
+[**`main` branch**](https://github.com/Zeyu1-oss/dexterous-functional-grasping/tree/main) of this same
 repository (the Isaac Lab side): training data comes from its `collect_dp3_data.py`, and checkpoints trained
 here are deployed and graded by its `deploy_dp3_sim.py`. **Read that README first** — it covers the full
 pipeline; this one only records what changed on the DP3 side.
