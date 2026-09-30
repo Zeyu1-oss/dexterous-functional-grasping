@@ -32,8 +32,8 @@ Use two sibling checkouts:
 
 ```text
 <workspace>/
-├── functional-grasp-with-torque-gate/   main: Isaac Lab training, collection, deployment
-└── 3D-Diffusion-Policy/                 dp3: student model and training code
+├── dexterous-functional-grasping/   main: Isaac Lab training, collection, deployment
+└── 3D-Diffusion-Policy/             dp3: student model and training code
 ```
 
 Install Isaac Sim and Isaac Lab using the official
@@ -42,9 +42,9 @@ This project was developed with Python 3.11 and Isaac Lab 0.53.1. In that enviro
 
 ```bash
 # Repositories and dependencies
-git clone https://github.com/Zeyu1-oss/functional-grasp-with-torque-gate.git
-git clone -b dp3 https://github.com/Zeyu1-oss/functional-grasp-with-torque-gate.git 3D-Diffusion-Policy
-cd functional-grasp-with-torque-gate
+git clone https://github.com/Zeyu1-oss/dexterous-functional-grasping.git
+git clone -b dp3 https://github.com/Zeyu1-oss/dexterous-functional-grasping.git 3D-Diffusion-Policy
+cd dexterous-functional-grasping
 pip install rl_games==1.6.1 zarr numcodecs dill omegaconf trimesh
 pip install einops diffusers termcolor hydra-core gdown
 
@@ -61,8 +61,8 @@ Deployment runs in the Isaac Lab environment and imports model code from the `dp
 For a different checkout location, set `DP3_ROOT` to its **inner** `3D-Diffusion-Policy/` directory
 containing `diffusion_policy_3d`.
 Student training requires a separate Python 3.8 environment; follow the `dp3` branch's
-[installation instructions](https://github.com/Zeyu1-oss/functional-grasp-with-torque-gate/blob/dp3/INSTALL.md)
-and [training setup notes](https://github.com/Zeyu1-oss/functional-grasp-with-torque-gate/tree/dp3#installation).
+[installation instructions](https://github.com/Zeyu1-oss/dexterous-functional-grasping/blob/dp3/INSTALL.md)
+and [training setup notes](https://github.com/Zeyu1-oss/dexterous-functional-grasping/tree/dp3#installation).
 
 ## Usage
 
@@ -104,13 +104,13 @@ Activate the DP3 environment, then train the student with an absolute dataset pa
 ```bash
 cd ../3D-Diffusion-Policy
 bash scripts/train_policy_inspire_drill_grasp_norobot_eq1_auxtorque.sh \
-    /absolute/path/to/functional-grasp-with-torque-gate/data/norobot.zarr
+    /absolute/path/to/dexterous-functional-grasping/data/norobot.zarr
 ```
 
 Reactivate the Isaac Lab environment and evaluate the checkpoint:
 
 ```bash
-cd ../functional-grasp-with-torque-gate
+cd ../dexterous-functional-grasping
 python scripts/deploy_dp3_sim.py --stage1_only --headless --num_envs 70 \
     --single_camera --no_robot_pc \
     --dp3_ckpt ../3D-Diffusion-Policy/3D-Diffusion-Policy/data/outputs/<run>/checkpoints/epoch_0180.ckpt \
