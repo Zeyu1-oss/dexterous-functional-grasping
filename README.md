@@ -50,7 +50,6 @@ pip install einops diffusers termcolor hydra-core gdown
 # Assets
 gdown --fuzzy 'https://drive.google.com/file/d/1PdrOZZjNwIF0OrMTwvL6x9sda6tw_FAN/view?usp=drive_link' -O assets.zip
 unzip assets.zip -d assets/
-python tools/build_robot_pointcloud.py
 ```
 
 Released checkpoints are downloaded where they are used, in the sections below; each training step
@@ -97,6 +96,9 @@ python scripts/collect_dp3_data.py --stage1_only --headless \
     --single_camera --no_robot_pc --force_state --save_contact \
     --stage1_checkpoint stage1_teacher.pth --output data/norobot.zarr
 ```
+
+With `--stage1_only`, collection requires only `--stage1_checkpoint`; the alignment teacher is
+not loaded or run.
 
 Activate the DP3 environment, then train the student with an absolute dataset path:
 
