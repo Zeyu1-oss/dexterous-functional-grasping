@@ -20,8 +20,7 @@ screw-hole alignment from successful grasp states.
 
 The student combines **contact-gated torque features** with an auxiliary torque prediction
 objective. In the default training configuration, a scalar gate predicted from joint torques
-modulates the torque feature. Simulator hand–tool contact forces provide binary supervision
-(threshold: 0.01 N; BCE weight: 0.1). Contact labels and functional annotations are used only during
+modulates the torque feature. Contact labels and functional annotations are used only during
 training. All reported experiments are in simulation.
 
 <p align="center"><img src="docs/img/pipelinev1.png" width="88%" alt="Privileged PPO teacher, demonstration collection, and contact-gated diffusion-policy student"></p>
