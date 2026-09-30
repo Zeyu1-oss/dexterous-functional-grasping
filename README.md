@@ -7,10 +7,8 @@ Isaac Lab environments and a teacher–student learning pipeline for functional 
 drills with a 7-DoF Franka arm and a 6-DoF Inspire hand. A functional grasp encloses the handle
 while positioning the index finger near the trigger.
 
-<p align="center">
-  <img src="docs/img/setup.png" width="49%" alt="Franka arm with Inspire hand and a power drill in Isaac Lab">
-  <img src="docs/img/functional_grasp.png" width="35%" alt="Functional grasp with the index finger near the trigger">
-</p>
+<p align="center"><img src="docs/img/task_overview.png" width="100%" alt="Six frames of one episode: approaching the drill lying on the table, reorienting it upright, closing the hand around the handle, lifting it with the index finger at the trigger, and aligning the bit with the work plate"></p>
+<p align="center"><em>One episode: reorient the drill on the table, form a functional grasp, then aim the bit at the work plate.</em></p>
 
 ## Method
 
@@ -183,6 +181,24 @@ The metric measures grasp configuration and trigger proximity; the trigger is no
 Historical teacher success rates are **93.0%** for grasping and **92.0%** for alignment.
 Their evaluation logs were not retained, so their protocols cannot be verified against the
 student evaluation below.
+
+<p align="center">
+  <img src="docs/img/grasp_spray1.png" height="150" alt="Spray bottle grasped, index finger on the trigger">
+  <img src="docs/img/grasp_spray2.png" height="150" alt="Second spray bottle grasped, index finger extended onto the trigger">
+  <img src="docs/img/grasp_dispenser.png" height="150" alt="Dispenser can held in a fist, thumb over the pump">
+  <img src="docs/img/grasp_drill.png" height="150" alt="Drill grasped by the handle with the index finger at the trigger">
+  <img src="docs/img/grasp_unseen1.png" height="150" alt="Held-out yellow drill grasped by the handle">
+  <img src="docs/img/grasp_unseen2.png" height="150" alt="Held-out green drill grasped by the handle">
+</p>
+<p align="center"><em>Terminal configurations reached by grasp students. The first four are instances
+from the trained categories — two trigger sprays, a thumb-actuated dispenser, a drill. The last two
+are drill instances held out from training.</em></p>
+
+The tools beyond drills are the same formulation under different per-object annotations — what
+changes is where the control sits and which digit actuates it, not the policy or the reward. The
+active configuration here is three drills (`drill2`, `drill_blue`, `drill_yellow`); the spray and
+can variants are present in [config/drill_variants.yaml](config/drill_variants.yaml) but commented
+out, and [docs/ADDING_OBJECTS.md](docs/ADDING_OBJECTS.md) covers annotating a new object.
 
 ### Torque ablation
 
